@@ -1,0 +1,46 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-assets.txt
+      - run: python -m pip install -r requirements-assets.txt
+      - run: python scripts/prepare-assets.py
+      - name: Assemble public files
+        run: |
+          mkdir -p _site/assets
+          cp index.html main.js ui.js style.css LICENSE THIRD_PARTY_NOTICES.md _site/
+          cp -R vendor _site/
+          cp assets/iPhone_Duo_Render.usdc _site/assets/
+          cp -R assets/textures assets/ui _site/assets/
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
